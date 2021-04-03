@@ -1,1 +1,10 @@
 .ipynb_checkpoints/
+__pycache__/
+vscode/
+snapshots/
+backup/
+*.pt
+*.npy
+*.log
+*.png
+*.eps
