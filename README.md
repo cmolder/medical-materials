@@ -64,7 +64,7 @@ We thank Hadi Salman and Alycia Carey for their assistance in helping us develop
 In our paper, we used the following datasets to generate medical texture patches and evaluate D-CNN and MAC-CNN:
 
 #### Brain / tumor datasets
-<details open>
+<details closed>
 <summary>Brain-Tumor-Progression, The Cancer Imaging Archive</summary>
 
 [Link to dataset](https://wiki.cancerimagingarchive.net/display/Public/Brain-Tumor-Progression)
@@ -74,7 +74,7 @@ In our paper, we used the following datasets to generate medical texture patches
 > Clark K, Vendt B, Smith K, Freymann J, Kirby J, Koppel P, Moore S, Phillips S, Maffitt D, Pringle M, Tarbox L, Prior F. **The Cancer Imaging Archive (TCIA): Maintaining and Operating a Public Information Repository**, Journal of Digital Imaging, Volume 26, Number 6, December, 2013, pp 1045-1057. (paper)
 </details>
 
-<details open>
+<details closed>
 <summary>Brain Tumor Dataset, FigShare</summary>
 
 [Link to dataset](https://search.datacite.org/works/10.6084/M9.FIGSHARE.1512427.V5)
@@ -83,7 +83,7 @@ In our paper, we used the following datasets to generate medical texture patches
 </details>
 
 #### Bone datasets
-<details open>
+<details closed>
 <summary>CHECK (Cohort Hip and Cohort Knee) Dataset</summary>
 
 [Link to dataset](https://easy.dans.knaw.nl/ui/datasets/id/easy-dataset:62955)
