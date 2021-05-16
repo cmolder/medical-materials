@@ -180,36 +180,39 @@ def main(data_root):
         data_root: string
         - Root path to the image/patch data.
     """
+    with torch.no_grad():
+        test_tf = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.ToTensor(),
+        ])
+         
+        # test_set    = PatchNpyDataset(root = f'{data_root}/patch-set/npy/test', transform = test_tf)
+        test_set   = PatchNpyDataset(root = os.path.join(data_root, 'patch-set', 'npy', 'test'), transform = test_tf)
+        test_loader = DataLoader(test_set, batch_size = BATCH_SIZE, shuffle = False)
+        
+        device_str = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device     = torch.device(device_str)
+        mmac_cnn   = torch.load('mmac_cnn_2.pt').to(device)
+        
+        print(test_set.get_labels())
+        
+        all_Ypreds, all_Apreds = test(mmac_cnn, device, test_loader)
+        
+        # Generate a correlation matrix between the attributes and categories.
+        correlation_matrix(all_Ypreds, all_Apreds[:,:,-1], test_set.get_labels())
+        
+        # Use t-sne embedding to see how well MMAC's A attributes separate
+        # the k material categories
     
-    test_tf = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.ToTensor(),
-    ])
-     
-    # test_set    = PatchNpyDataset(root = f'{data_root}/patch-set/npy/test', transform = test_tf)
-    test_set   = PatchNpyDataset(root = os.path.join(data_root, 'patch-set', 'npy', 'test'), transform = test_tf)
-    test_loader = DataLoader(test_set, batch_size = BATCH_SIZE, shuffle = False)
-    
-    device_str = 'cuda' if torch.cuda.is_available() else 'cpu'
-    device     = torch.device(device_str)
-    mmac_cnn   = torch.load('mmac_cnn.pt').to(device)
-    
-    print(test_set.get_labels())
-    
-    all_Ypreds, all_Apreds = test(mmac_cnn, device, test_loader)
-    
-    # Generate a correlation matrix between the attributes and categories.
-    correlation_matrix(all_Ypreds, all_Apreds[:,:,-1], test_set.get_labels())
-    
-    # Use t-sne embedding to see how well MMAC's A attributes separate
-    # the k material categories
-    
-    tsne_learned(test_set, all_Apreds)
-    # test_set = PatchNpyDataset(root = f'{data_root}/patch-set/npy/test') # Reinit test set b/c pillow transform makes it unworkable with tsne_raw
-    test_set = PatchNpyDataset(root = os.path.join(data_root, 'patch-set', 'npy', 'test')) # Reinit test set b/c pillow transform makes it unworkable with tsne_raw
-    tsne_raw(test_set)
+        tsne_learned(test_set, all_Apreds)
+        # test_set = PatchNpyDataset(root = f'{data_root}/patch-set/npy/test') # Reinit test set b/c pillow transform makes it unworkable with tsne_raw
+        test_set = PatchNpyDataset(root = os.path.join(data_root, 'patch-set', 'npy', 'test')) # Reinit test set b/c pillow transform makes it unworkable with tsne_raw
+        tsne_raw(test_set)
 
-    
+
+# VGG-16         : 93.385% (93.4%)
+# ResNet34       : 92.816% (92.8%)
+# ResNet34 (no A): 91.738% (91.7%)
     
 if __name__ == '__main__':
     # Launch program using python test_dcnn.py <data_root>

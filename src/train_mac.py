@@ -1,33 +1,36 @@
 import os, sys
 
 import torch
-# import torch.nn.functional as F
-# import torchvision.transforms as transforms
 import numpy as np
 import matplotlib.pyplot as plt
 
-from tqdm.autonotebook import tqdm
+from tqdm import tqdm
 from torch.optim import Adam, lr_scheduler
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
+import mmac_net
 from datasets import PatchNpyDataset
-from mmac_net import MMAC_CNN
 from mmac_net.train_helpers import loss_acc
 
 
 
-BATCH_SIZE  = 50 # Number of pos/neg pairs per batch
-LR_PATIENCE = 1  # Number of epochs of training loss increase before the learning rate clamps down
-EPOCHS      = 15 # Number of epochs
+BATCH_SIZE  = 50   # Number of pos/neg pairs per batch
+LR_START    = 1e-4 # Initial learning rate
+LR_PATIENCE = 1    # Number of epochs of training loss increase before the learning rate is reduced by 10x
+EPOCHS      = 15   # Number of epochs
+
+# The type of MMAC_CNN model to be trained
+# - mmac_net.MMAC_CNN       : ResNet34
+# - mmac_net.MMAC_CNN_VGG16 : VGG16
+MMAC_MODEL  = mmac_net.MMAC_CNN_VGG16
 
 def train(model, device, train_loader, optimizer, 
           w_per = 1e0, w_kld = 1e-2, verbose=True):
-    model.train()
-    """Trains the MMAC-CNN one time.
+    """Trains the MMAC_MODEL one time.
 
     Parameters:
-        model: MMAC_CNN
+        model: MMAC_MODEL
             The neural network being tested.
         device: string
             The device (cpu or cuda) that the model will be run on.
@@ -50,6 +53,7 @@ def train(model, device, train_loader, optimizer,
         accuracy: float
             The accuracy of the MMAC-CNN's predictions during training.
     """
+    model.train()
     
     A = model.A  
     total_loss  = 0.0
@@ -106,10 +110,10 @@ def train(model, device, train_loader, optimizer,
     
 def validate(model, device, val_loader,
              w_per = 1e0, w_kld = 1e-2, verbose=True):
-    """Runs the MMAC-CNN one time over the validation set.
+    """Runs the MMAC_MODEL one time over the validation set.
 
     Parameters:
-        model: MMAC_CNN
+        model: MMAC_MODEL
             The neural network being tested.
         device: string
             The device (cpu or cuda) that the model will be run on.
@@ -137,28 +141,29 @@ def validate(model, device, val_loader,
     total_acc   = 0.0
     total_ucost = 0.0
     
-    for batch_idx, batch in enumerate(tqdm(val_loader, unit=' validation batches')):
-        X, y = batch
-
-        X = X.to(device)
-        y = y.to(device)
-        
-        # Forward pass
-        # y_pred is the k class prediction
-        # A_preds are the a1, a2, ..., a5, a_final m attribute predictions
-        # from each level of the auxillary layers
-        y_pred, A_preds = model(X)
-        
-        # l is the loss
-        # a is the accuracy
-        # u is the u-cost
-        # y is a k-dimensional one-hot vector
-        # A is the (k x m) matrix      
-        loss, acc, u_cost = loss_acc(y, y_pred, A, A_preds, w_kld, w_per)
-        
-        total_loss  += float(loss)
-        total_acc   += acc
-        total_ucost += u_cost
+    with torch.no_grad():
+        for batch_idx, batch in enumerate(tqdm(val_loader, unit=' validation batches')):
+            X, y = batch
+    
+            X = X.to(device)
+            y = y.to(device)
+            
+            # Forward pass
+            # y_pred is the k class prediction
+            # A_preds are the a1, a2, ..., a5, a_final m attribute predictions
+            # from each level of the auxillary layers
+            y_pred, A_preds = model(X)
+            
+            # l is the loss
+            # a is the accuracy
+            # u is the u-cost
+            # y is a k-dimensional one-hot vector
+            # A is the (k x m) matrix      
+            loss, acc, u_cost = loss_acc(y, y_pred, A, A_preds, w_kld, w_per)
+            
+            total_loss  += float(loss)
+            total_acc   += acc
+            total_ucost += u_cost
 
     # Print results
     if verbose:
@@ -171,7 +176,7 @@ def validate(model, device, val_loader,
 
 
 def main(data_root):
-    """Driver class for training the MAC-CNN.
+    """Driver class for training the MMAC_MODEL.
     
     Parameters:
         data_root: string
@@ -201,16 +206,17 @@ def main(data_root):
     device     = torch.device(device_str)
     
     A         = np.load('a.npy')
-    mmac_cnn  = MMAC_CNN(A, 32).to(device)
-    optimizer = Adam(mmac_cnn.parameters(), lr = 1e-3)
+    mmac_cnn  = MMAC_MODEL(A, 32).to(device)
+    optimizer = Adam(mmac_cnn.parameters(), lr = LR_START)
     
     # We reduce the LR by a factor of 10 whenever validation error increases.
     scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=LR_PATIENCE, min_lr=1e-8)
     
     print(f'Training set   : {len(train_set)} samples')
     print(f'Validation set : {len(val_set)} samples')
-    print(f'Labels : {train_set.get_labels()}')
-    print(f'Device : {device_str}')
+    print(f'Labels     : {train_set.get_labels()}')
+    print(f'Device     : {device_str}')
+    print(f'Model type : {MMAC_MODEL}')
     
     # Prepare stuff
     train_losses = []
@@ -232,8 +238,8 @@ def main(data_root):
         # save the MMAC model state
         if(val_loss < min_loss):
             min_loss = val_loss
-            print('Saving mmac_cnn state to mmac_cnn.pt...')
-            torch.save(mmac_cnn, 'mmac_cnn.pt')
+            print('Saving mmac_cnn state to mmac_cnn_3.pt...')
+            torch.save(mmac_cnn, 'mmac_cnn_3.pt')
         
         scheduler.step(val_loss)
         

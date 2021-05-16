@@ -10,8 +10,8 @@ from torch.optim import Adam, lr_scheduler
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
+import mmac_net
 from datasets import PatchNpyDataset
-from mmac_net import MMAC_CNN
 from mmac_net.train_helpers import loss_acc
 
 
@@ -19,14 +19,18 @@ BATCH_SIZE  = 50 # Number of pos/neg pairs per batch
 LR_PATIENCE = 1  # Number of epochs of training loss increase before the learning rate clamps down
 EPOCHS      = 15 # Number of epochs
 
+# The type of MMAC_CNN model to be trained
+# - mmac_net.MMAC_CNN       : ResNet34
+# - mmac_net.MMAC_CNN_VGG16 : VGG16
+MMAC_MODEL  = mmac_net.MMAC_CNN
 
 
 def train(model, device, train_loader, optimizer, 
           w_per = 1e0, w_kld = 1e-2):
-    """Trains the MMAC_CNN one time.
+    """Trains the MMAC_MODEL one time.
     
     Parameters:
-        model: MMAC_CNN
+        model: MMAC_MODEL
             The neural network being tested.
         device: string
             The device (cpu or cuda) that the model will be run on.
@@ -104,10 +108,10 @@ def train(model, device, train_loader, optimizer,
 
 def validate(model, device, val_loader,
              w_per = 1e0, w_kld = 1e-2):
-    """Runs the MMAC_CNN one time over the validation set.
+    """Runs the MMAC_MODEL one time over the validation set.
     
     Parameters:
-        model: MMAC_CNN
+        model: MMAC_MODEL
             The neural network being tested.
         device: string
             The device (cpu or cuda) that the model will be run on.
@@ -204,16 +208,17 @@ def main(data_root):
     device     = torch.device(device_str)
     
     A         = np.load('a.npy')
-    mac_cnn   = MMAC_CNN(A, 32).to(device)
-    optimizer = Adam(mac_cnn.parameters(), lr = 1e-3)
+    mac_cnn   = MMAC_MODEL(A, 32).to(device)
+    optimizer = Adam(mac_cnn.parameters(), lr = 1e-4)
     
     # We reduce the LR by a factor of 10 whenever validation error increases.
     scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=LR_PATIENCE, min_lr=1e-8)
     
     print(f'Training set   : {len(train_set)} samples')
     print(f'Validation set : {len(val_set)} samples')
-    print(f'Labels : {train_set.get_labels()}')
-    print(f'Device : {device_str}')
+    print(f'Labels     : {train_set.get_labels()}')
+    print(f'Device     : {device_str}')
+    print(f'Model type : {MMAC_MODEL}')
     
     # Prepare stuff
     train_losses = []
